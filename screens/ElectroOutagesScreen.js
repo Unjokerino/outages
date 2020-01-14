@@ -1,10 +1,17 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  RefreshControl
+} from "react-native";
 import { ExpoLinksView } from "@expo/samples";
 import { getCustomTabsSupportingBrowsersAsync } from "expo-web-browser";
 import Fuse from "fuse.js";
 import { Input, ListItem } from "react-native-elements";
-import { FlatList, TouchableOpacity } from "react-native-gesture-handler";
+import OutagesListItem from "../components/OutagesListItem";
+import { Searchbar, ActivityIndicator, Colors } from "react-native-paper";
 
 export default class ElectroOutagesScreen extends React.Component {
   constructor(props) {
@@ -12,11 +19,17 @@ export default class ElectroOutagesScreen extends React.Component {
     this.state = {
       searchQuery: "",
       searchData: {},
+      searchResult: [],
       outages: [],
       limit: 10,
       refreshing: false
     };
   }
+
+  updateSearch = search => {
+    this.setState({ searchQuery: search });
+    this.fuse();
+  };
 
   getOutages = () => {
     fetch("https://wsolver.ru/outages/outages.php").then(async response => {
@@ -24,7 +37,9 @@ export default class ElectroOutagesScreen extends React.Component {
       let json_text;
       if ((json_text = JSON.parse(text))) {
         this.setState({
-          outages: json_text
+          outages: json_text,
+          searchResult: json_text,
+          refreshing: false
         });
       }
     });
@@ -45,77 +60,58 @@ export default class ElectroOutagesScreen extends React.Component {
     }
   };
 
-  fuse(query, y) {
-    const nested = [
-      { name: "typechild.name", weight: 0.4 },
-      { name: "typechild.vals", weight: 0.3 }
-    ];
-
-    const threshhold = 0.3;
+  fuse(e, y) {
     // 2 means it is nested
-    var opts = {
+    var options = {
       shouldSort: true,
-      threshold: threshhold,
-      keys: nested
+      threshold: 0.8,
+      location: 0,
+      refreshing: true,
+      distance: 100,
+      maxPatternLength: 32,
+      minMatchCharLength: 1,
+      keys: ["adress", "location"]
     };
-    var fuse = new Fuse(this.state.outages, opts);
-    var res = fuse.search(this.state.searchVal);
-    return res;
+    var fuse = new Fuse(this.state.outages, options);
+    var res = fuse.search(this.state.searchQuery);
+
+    console.log(res);
+    this.setState({
+      searchResult: this.state.searchQuery.length > 0 ? res : this.state.outages
+    });
   }
 
   _keyExtractor = item => {
     return item.adress;
   };
 
-  _renderItem = ({ item }) => (
-    <View>
-      <Text>111</Text>
-      <Text>{item.adress}</Text>
-    </View>
-  );
-
   componentDidMount() {
     this.getOutages();
   }
   render() {
     return (
-      <ScrollView style={styles.container}>
-        <Input
-          placeholder="Введите адрес"
-          onChangeText={text => {
-            this.setState({ searchQuery: text });
-          }}
-          c
-        ></Input>
-        <ScrollView
-          style={styles.tagsViews}
-          horizontal={true}
-          showsHorizontalScrollIndicator={false}
-        >
-          {this.state.outages.map(elem => (
-            <TouchableOpacity>
-              <Text style={styles.tag}>
-                {this.transformLocation(elem.location)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={this.state.refreshing}
+            onRefresh={this.getOutages}
+          />
+        }
+        style={styles.container}
+      >
+        <View style={styles.header}>
+          <Searchbar
+            placeholder="Введите адрес..."
+            onChangeText={this.updateSearch}
+            value={this.state.searchQuery}
+          />
+        </View>
         <View>
-          {this.state.outages.map(elem => (
-            <View>
-              {Object.keys(elem.plan).map(v => (
-                <View>
-                  <Text>{v}</Text>
-                  {elem.plan[v].map(plan => (
-                    <View>
-                      <Text>{plan.UK}</Text>
-                      <Text>{plan.adress}</Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
+          {this.state.searchResult.map((elem, index) => (
+            <OutagesListItem
+              {...elem}
+              location={this.transformLocation(elem.location)}
+            />
           ))}
         </View>
       </ScrollView>
@@ -130,12 +126,16 @@ ElectroOutagesScreen.navigationOptions = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 15,
-    backgroundColor: "#fff"
+
+    backgroundColor: "whitesmoke"
   },
   tagsViews: {
     flexDirection: "column",
     marginTop: 10
+  },
+  header: {
+    elevation: 20,
+    zIndex: 10
   },
   tag: {
     color: "gray",
