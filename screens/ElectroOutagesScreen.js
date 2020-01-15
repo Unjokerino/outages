@@ -31,7 +31,7 @@ export default class ElectroOutagesScreen extends React.Component {
     this.fuse();
   };
 
-  getOutages = () => {
+  getOutages = async () => {
     fetch("https://wsolver.ru/outages/outages.php").then(async response => {
       const text = await response.text();
       let json_text;

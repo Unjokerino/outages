@@ -5,8 +5,12 @@ import { createBottomTabNavigator } from "react-navigation-tabs";
 
 import TabBarIcon from "../components/TabBarIcon";
 import HomeScreen from "../screens/HomeScreen";
-
 import SettingsScreen from "../screens/SettingsScreen";
+import { BottomNavigation, Text } from "react-native-paper";
+
+const HomeRoute = () => HomeScreen;
+
+const SettingsRoute = () => SettingsScreen;
 
 const config = Platform.select({
   web: { headerMode: "screen" },
@@ -62,4 +66,30 @@ const tabNavigator = createBottomTabNavigator({
 
 tabNavigator.path = "";
 
-export default tabNavigator;
+export default class BottomNavigator extends React.Component {
+  state = {
+    index: 0,
+    routes: [
+      { key: "home", title: "Home", icon: "home", color: "#000" },
+      { key: "settings", title: "Settings", icon: "settings", color: "#f1f1f1" }
+    ]
+  };
+
+  _handleIndexChange = index => this.setState({ index });
+
+  _renderScene = BottomNavigation.SceneMap({
+    home: HomeScreen,
+    settings: SettingsScreen
+  });
+
+  render() {
+    return (
+      <BottomNavigation
+        shifting={true}
+        navigationState={this.state}
+        onIndexChange={this._handleIndexChange}
+        renderScene={this._renderScene}
+      />
+    );
+  }
+}
